@@ -477,13 +477,14 @@ do --M.get
     return table.concat(contents, "")
   end
 
+  ---for query_string rather than volatile Query
   local cache = {}
   do
     ---@type {[string]: {[string]: Query|false}}
-    cache.store = dictlib.CappedDict(32)
+    cache.store = dictlib.CappedDict(16)
     function cache:get(lang, query_name) return dictlib.get(self.store, lang, query_name) end
     function cache:set(lang, query_name, value)
-      if self.store[lang] == nil then self.store[lang] = dictlib.CappedDict(1024) end
+      if self.store[lang] == nil then self.store[lang] = dictlib.CappedDict(8) end
       self.store[lang][query_name] = value
     end
   end
@@ -492,21 +493,15 @@ do --M.get
   ---@param query_name string Name of the query (e.g. "highlights")
   ---@return Query?
   function M.get(lang, query_name)
-    local held = cache:get(lang, query_name)
-    if held == false then return end
-    if held ~= nil then return held end
-
-    local query_files = M.get_files(lang, query_name)
-    local query_string = load_query_string(query_files)
-
-    if #query_string == 0 then
-      cache:set(lang, query_name, false)
-      return
+    local query_string = cache:get(lang, query_name)
+    if query_string == nil then
+      local query_files = M.get_files(lang, query_name)
+      query_string = load_query_string(query_files)
+      cache:set(lang, query_name, query_string)
     end
 
-    local query = M.parse(lang, query_string)
-    cache:set(lang, query_name, query)
-    return query
+    if #query_string == 0 then return end
+    return M.parse(lang, query_string)
   end
 end
 
@@ -514,14 +509,14 @@ do --M.parse
   local cache = {}
   do
     ---@type {[string]: {[string]: Query}}
-    cache.store = dictlib.CappedDict(32)
+    cache.store = dictlib.CappedDict(16)
     function cache:get(lang, query_string)
       local queries = self.store[lang]
       if queries == nil then return end
       return queries[cthulhu.md5(query_string)]
     end
     function cache:set(lang, query_string, value)
-      if self.store[lang] == nil then self.store[lang] = dictlib.CappedDict(1024) end
+      if self.store[lang] == nil then self.store[lang] = dictlib.CappedDict(128, true) end
       self.store[lang][cthulhu.md5(query_string)] = value
     end
   end
