@@ -3,6 +3,8 @@ changes:
 * localize helpers
 * rm deprecated apis
 * no explicit_queries, no .set()
+* no query-modeline
+* .get_files() only recognize the first `highlights.scm` in &rtp
 --]]
 
 ---@class TSQueryModule
@@ -11,7 +13,7 @@ local M = {}
 local language = require("vim.treesitter.language")
 
 local dictlib = require("infra.dictlib")
-local fn = require("infra.fn")
+local jelly = require("infra.jellyfish")("hal.treesitter.query", vim.log.levels.INFO)
 
 local cthulhu = require("cthulhu")
 
@@ -371,92 +373,15 @@ do
   end
 end
 
-do --todo: can be loaded from nvim runtime
-  --- Adds {ilang} to {base_langs}, only if {ilang} is different than {lang}
-  ---@return boolean true If lang == ilang
-  local function add_included_lang(base_langs, lang, ilang)
-    if lang == ilang then return true end
-    table.insert(base_langs, ilang)
-    return false
-  end
-
-  ---@param files string[]
-  ---@return string[]
-  local function dedupe_files(files) return dictlib.keys(fn.toset(files)) end
-
-  --- Gets the list of files used to make up a query
-  ---
+do --M.get_files
   ---@param lang string Language to get query for
   ---@param query_name string Name of the query to load (e.g., "highlights")
-  ---@param is_included (boolean|nil) Internal parameter, most of the time left as `nil`
-  ---@return string[] query_files List of files to load for given query and language
-  function M.get_files(lang, query_name, is_included)
-    local query_path = string.format("queries/%s/%s.scm", lang, query_name)
-    local lang_files = dedupe_files(api.nvim_get_runtime_file(query_path, true))
-
-    if #lang_files == 0 then return {} end
-
-    local base_query = nil ---@type string?
-    local extensions = {}
-
-    local base_langs = {} ---@type string[]
-
-    -- Now get the base languages by looking at the first line of every file
-    -- The syntax is the following :
-    -- ;+ inherits: ({language},)*{language}
-    --
-    -- {language} ::= {lang} | ({lang})
-    local MODELINE_FORMAT = "^;+%s*inherits%s*:?%s*([a-z_,()]+)%s*$"
-    local EXTENDS_FORMAT = "^;+%s*extends%s*$"
-
-    for _, filename in ipairs(lang_files) do
-      local file, err = io.open(filename, "r")
-      if not file then error(err) end
-
-      local extension = false
-
-      for modeline in
-        ---@return string
-        function() return file:read("*l") end
-      do
-        if not vim.startswith(modeline, ";") then break end
-
-        local langlist = modeline:match(MODELINE_FORMAT)
-        if langlist then
-          ---@diagnostic disable-next-line:param-type-mismatch
-          for _, incllang in ipairs(vim.split(langlist, ",", true)) do
-            local is_optional = incllang:match("%(.*%)")
-
-            if is_optional then
-              if not is_included then
-                if add_included_lang(base_langs, lang, incllang:sub(2, #incllang - 1)) then extension = true end
-              end
-            else
-              if add_included_lang(base_langs, lang, incllang) then extension = true end
-            end
-          end
-        elseif modeline:match(EXTENDS_FORMAT) then
-          extension = true
-        end
-      end
-
-      if extension then
-        table.insert(extensions, filename)
-      elseif base_query == nil then
-        base_query = filename
-      end
-      io.close(file)
-    end
-
-    local query_files = {}
-    for _, base_lang in ipairs(base_langs) do
-      local base_files = M.get_files(base_lang, query_name, true)
-      vim.list_extend(query_files, base_files)
-    end
-    vim.list_extend(query_files, { base_query })
-    vim.list_extend(query_files, extensions)
-
-    return query_files
+  ---@return string[]
+  function M.get_files(lang, query_name)
+    ---disable folds, injections group
+    if query_name ~= "highlights" then return {} end
+    local pattern = string.format("queries/%s/%s.scm", lang, query_name)
+    return api.nvim_get_runtime_file(pattern, false)
   end
 end
 
@@ -532,9 +457,10 @@ do --M.parse
 
     local query
     do
-      local _query = vim._ts_parse_query(lang, query_string)
-      local info = _query:inspect()
-      query = setmetatable({ query = _query, info = info, captures = info.captures }, Query)
+      jelly.debug("parsing lang=%s, query='%s'", lang, query_string)
+      local native = vim._ts_parse_query(lang, query_string)
+      local info = native:inspect()
+      query = setmetatable({ query = native, info = info, captures = info.captures }, Query)
     end
     cache:set(lang, query_string, query)
     return query
