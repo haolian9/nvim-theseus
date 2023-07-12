@@ -437,7 +437,6 @@ function M.config(opts, namespace)
   end
 end
 
-M.set = nil
 do
   local function set_diagnostic_cache(namespace, bufnr, diagnostics)
     for _, diagnostic in ipairs(diagnostics) do
@@ -532,15 +531,9 @@ function M.get_namespaces() return vim.deepcopy(all_namespaces) end
 ---@field _tags { deprecated: boolean, unnecessary: boolean}
 ---@field user_data nil|any arbitrary data plugins can add
 
---- Get current diagnostics.
----
----@param bufnr integer|nil Buffer number to get diagnostics from. Use 0 for
----                        current buffer or nil for all buffers.
----@param opts table|nil A table with the following keys:
----                        - namespace: (number) Limit diagnostics to the given namespace.
----                        - lnum: (number) Limit diagnostics to the given line number.
----                        - severity: See |diagnostic-severity|.
----@return Diagnostic[] table A list of diagnostic items |diagnostic-structure|.
+---@param bufnr? integer
+---@param opts? {namespace: integer?, lnum: integer?, severity: integer?}
+---@return Diagnostic[]
 function M.get(bufnr, opts)
   vim.validate({
     bufnr = { bufnr, "n", true },
