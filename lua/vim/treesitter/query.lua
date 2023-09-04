@@ -12,10 +12,9 @@ local M = {}
 
 local language = require("vim.treesitter.language")
 
+local cthulhu = require("cthulhu")
 local dictlib = require("infra.dictlib")
 local jelly = require("infra.jellyfish")("hal.treesitter.query", "info")
-
-local cthulhu = require("cthulhu")
 
 local api = vim.api
 
