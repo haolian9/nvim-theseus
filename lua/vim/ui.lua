@@ -1,4 +1,4 @@
 return {
-  input = function(...) require("tui").input(...) end,
-  select = function(...) require("tui").select(...) end,
+  input = function(...) require("puff").input(...) end,
+  select = function(...) require("puff").select(...) end,
 }
