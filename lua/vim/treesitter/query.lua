@@ -385,20 +385,11 @@ do --M.get_files
 end
 
 do --M.get
-  local function file_content(filename)
-    local file = assert(io.open(filename, "r"))
-    local content = file:read("*a")
-    io.close(file)
-    return content
-  end
-
   ---@param filenames string[]
   local function load_query_string(filenames)
-    local contents = {}
-    for _, filename in ipairs(filenames) do
-      table.insert(contents, file_content(filename))
-    end
-    return table.concat(contents, "")
+    if #filenames == 0 then return "" end
+    assert(#filenames == 1)
+    return require("infra.coreutils").cat(filenames[1])
   end
 
   ---for query_string rather than volatile Query
