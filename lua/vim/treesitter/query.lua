@@ -53,13 +53,7 @@ do
   ---and |treesitter-directives| for more details.
   ---@field patterns table<integer, (integer|string)[][]>
 
-  local function safe_read(filename, read_quantifier)
-    local file, err = io.open(filename, "r")
-    if not file then error(err) end
-    local content = file:read(read_quantifier)
-    io.close(file)
-    return content
-  end
+  local function safe_read(filename, read_quantifier) end
 
   --- Gets the list of files used to make up a query
   ---
@@ -76,13 +70,13 @@ do
   ---@param filenames string[]
   ---@return string
   local function read_query_files(filenames)
-    local contents = {}
+    assert(#filenames == 1)
 
-    for _, filename in ipairs(filenames) do
-      table.insert(contents, safe_read(filename, "*a"))
-    end
-
-    return table.concat(contents, "")
+    local file, err = io.open(filenames[1], "r")
+    if not file then error(err) end
+    local content = file:read("*a")
+    io.close(file)
+    return content
   end
 
   -- The explicitly set queries from |vim.treesitter.query.set()|
