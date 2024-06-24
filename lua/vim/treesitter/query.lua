@@ -70,8 +70,9 @@ do
   ---@param filenames string[]
   ---@return string
   local function read_query_files(filenames)
-    assert(#filenames == 1)
+    if #filenames == 0 then return "" end
 
+    assert(#filenames <= 1)
     local file, err = io.open(filenames[1], "r")
     if not file then error(err) end
     local content = file:read("*a")
