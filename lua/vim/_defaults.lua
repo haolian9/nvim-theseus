@@ -1,8 +1,8 @@
 do --- Default autocommands. See |default-autocmds|
-  local nvim_terminal_augroup = vim.api.nvim_create_augroup("nvim_terminalxxxxxx", {})
+  local aug = vim.api.nvim_create_augroup("vim://term", {})
 
   vim.api.nvim_create_autocmd("TermRequest", {
-    group = nvim_terminal_augroup,
+    group = aug,
     desc = "Handles OSC foreground/background color requests",
     callback = function(args)
       --- @type integer
