@@ -1,7 +1,7 @@
 ----changes:
-----* .get_files(), .get()
-----  * no query-modeline
-----  * only pick the first .scm query
+----* change .get_files(): only pick the first .scm query
+----* change .get(): only support `include` directive
+----* rm read_query_files()
 
 --- @brief This Lua |treesitter-query| interface allows you to create queries and use them to parse
 --- text. See |vim.treesitter.query.parse()| for a working example.
@@ -152,18 +152,6 @@ function M.get_files(lang, query_name, is_included)
   return api.nvim_get_runtime_file(query_path, false)
 end
 
----@param filenames string[]
----@return string
-local function read_query_files(filenames)
-  local contents = {}
-
-  for _, filename in ipairs(filenames) do
-    table.insert(contents, safe_read(filename, "*a"))
-  end
-
-  return table.concat(contents, "")
-end
-
 -- The explicitly set query strings from |vim.treesitter.query.set()|
 ---@type table<string,table<string,string>>
 local explicit_queries = setmetatable({}, {
@@ -209,9 +197,7 @@ end
 M.get = memoize("concat-2", function(lang, query_name)
   if explicit_queries[lang][query_name] then return explicit_queries[lang][query_name] end
 
-  local query_files = M.get_files(lang, query_name)
-  local query_string = read_query_files(query_files)
-
+  local query_string = require'vim.treesitter.collect_querystring'(lang, query_name)
   if #query_string == 0 then return nil end
 
   return M.parse(lang, query_string)
